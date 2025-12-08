@@ -14,6 +14,16 @@ pub enum LayerStatus {
     Failed,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct LayerSummary {
+    pub id: Uuid,
+    pub name: String,
+    pub status: LayerStatus,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
 /// Core trait that all layer types must implement
 pub trait LayerCore: Sized {
     fn save<'e, E>(&self, executor: E) -> impl std::future::Future<Output = Result<()>> + Send
@@ -29,6 +39,13 @@ pub trait LayerCore: Sized {
         E: sqlx::Executor<'e, Database = sqlx::Postgres>;
 
     fn get<'e, E>(id: Uuid, executor: E) -> impl std::future::Future<Output = Result<Self>> + Send
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Postgres>;
+
+    fn exists<'e, E>(
+        id: Uuid,
+        executor: E,
+    ) -> impl std::future::Future<Output = Result<bool>> + Send
     where
         E: sqlx::Executor<'e, Database = sqlx::Postgres>;
 }
