@@ -274,7 +274,19 @@ impl VectorConnector for PostgisConnector {
         Ok(())
     }
 
-    async fn get_tile(&self, source_id: &Uuid, z: u32, x: u32, y: u32) -> Result<Vec<u8>> {
+    async fn get_tile(
+        &self,
+        source: &crate::connector::LayerLocation,
+        z: u32,
+        x: u32,
+        y: u32,
+    ) -> Result<Vec<u8>> {
+        // Extract namespace and name from LayerSource
+        let (namespace, table_name) = match source {
+            crate::connector::LayerLocation::Database { namespace, name } => (namespace, name),
+        };
+
+        // TODO: Remove this check, should be stored in Layer metadata
         // First, check which geometry column exists
         let check_column_query = "SELECT column_name 
             FROM information_schema.columns 
@@ -282,15 +294,15 @@ impl VectorConnector for PostgisConnector {
             AND column_name IN ('geom', 'geometry', 'geoms', 'wkb_geometry')";
 
         let geom_column: String = sqlx::query_as::<_, (String,)>(check_column_query)
-            .bind(source_id.to_string())
-            .bind(&self.schema)
+            .bind(table_name)
+            .bind(namespace)
             .fetch_one(&*self.pool)
             .await?
             .0;
 
         // Validate and quote identifiers to prevent SQL injection
-        let quoted_schema = quote_identifier(&self.schema)?;
-        let quoted_table = quote_identifier(&source_id.to_string())?;
+        let quoted_schema = quote_identifier(namespace)?;
+        let quoted_table = quote_identifier(table_name)?;
         let quoted_geom_column = quote_identifier(&geom_column)?;
 
         let query = format!(
@@ -322,7 +334,7 @@ impl VectorConnector for PostgisConnector {
             .bind(z as i32)
             .bind(x as i32)
             .bind(y as i32)
-            .bind(source_id.to_string())
+            .bind(table_name)
             .fetch_one(&*self.pool)
             .await?
             .0;

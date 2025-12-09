@@ -30,12 +30,19 @@ pub trait ConnectorBase: Send + Sync {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum LayerLocation {
+    Database { namespace: String, name: String },
+    // CloudObject { bucket: String, key: String },
+    // Uuid(Uuid),
+}
+
 /// Trait for all vector-based geospatial data sources
 #[async_trait]
 pub trait VectorConnector: ConnectorBase {
     async fn get_geometry_type(&self, source_id: &Uuid) -> Result<GeometryType>;
     async fn create_namespace(&self, name: &str) -> Result<()>;
-    async fn get_tile(&self, source_id: &Uuid, z: u32, x: u32, y: u32) -> Result<Vec<u8>>;
+    async fn get_tile(&self, source: &LayerLocation, z: u32, x: u32, y: u32) -> Result<Vec<u8>>;
     fn map_gdal_field_type(&self, field_type_str: &str) -> String;
 }
 
