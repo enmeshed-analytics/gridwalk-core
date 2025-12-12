@@ -3,6 +3,17 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use uuid::Uuid;
 
+#[derive(Clone, Debug, Display, Serialize, Deserialize, EnumString, PartialEq)]
+pub enum Srid {
+    #[serde(rename = "3857")]
+    #[strum(serialize = "3857")]
+    EPSG3857,
+
+    #[serde(rename = "4326")]
+    #[strum(serialize = "4326")]
+    EPSG4326,
+}
+
 #[derive(Clone, Debug, Display, Serialize, Deserialize, EnumString)]
 #[serde(rename_all = "lowercase")]
 pub enum LayerStatus {

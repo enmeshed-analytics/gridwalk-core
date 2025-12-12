@@ -276,39 +276,31 @@ impl VectorConnector for PostgisConnector {
 
     async fn get_tile(
         &self,
-        source: &crate::connector::LayerLocation,
+        source: &crate::connector::LayerSource,
+        layer_name: &str,
         z: u32,
         x: u32,
         y: u32,
     ) -> Result<Vec<u8>> {
         // Extract namespace and name from LayerSource
-        let (namespace, table_name) = match source {
-            crate::connector::LayerLocation::Database { namespace, name } => (namespace, name),
+        let (namespace, table_name, geometry_field, srid) = match source {
+            crate::connector::LayerSource::Database {
+                namespace,
+                name,
+                geometry_field,
+                srid,
+            } => (namespace, name, geometry_field, srid),
         };
-
-        // TODO: Remove this check, should be stored in Layer metadata
-        // First, check which geometry column exists
-        let check_column_query = "SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = $1 AND table_schema = $2
-            AND column_name IN ('geom', 'geometry', 'geoms', 'wkb_geometry')";
-
-        let geom_column: String = sqlx::query_as::<_, (String,)>(check_column_query)
-            .bind(table_name)
-            .bind(namespace)
-            .fetch_one(&*self.pool)
-            .await?
-            .0;
 
         // Validate and quote identifiers to prevent SQL injection
         let quoted_schema = quote_identifier(namespace)?;
         let quoted_table = quote_identifier(table_name)?;
-        let quoted_geom_column = quote_identifier(&geom_column)?;
+        let geom_column = quote_identifier(geometry_field)?;
 
         let query = format!(
             "
                 WITH bounds AS (
-                    SELECT ST_Transform(ST_TileEnvelope($1, $2, $3), 4326) AS geom
+                    SELECT ST_Transform(ST_TileEnvelope($1, $2, $3), {}) AS geom
                 ),
                 mvt_data AS (
                     SELECT ST_AsMVTGeom(
@@ -325,19 +317,21 @@ impl VectorConnector for PostgisConnector {
                 SELECT ST_AsMVT(mvt_data.*, $4) AS mvt
                 FROM mvt_data;
                 ",
+            srid,
             schema = quoted_schema,
             table = quoted_table,
-            geom_col = quoted_geom_column,
+            geom_col = geom_column
         );
 
         let mvt_data: Vec<u8> = sqlx::query_as::<_, (Vec<u8>,)>(&query)
             .bind(z as i32)
             .bind(x as i32)
             .bind(y as i32)
-            .bind(table_name)
+            .bind(layer_name)
             .fetch_one(&*self.pool)
             .await?
             .0;
+        debug!("MVT data size: {}", mvt_data.len());
         Ok(mvt_data)
     }
 
