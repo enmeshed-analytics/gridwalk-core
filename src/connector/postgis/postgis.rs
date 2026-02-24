@@ -114,6 +114,7 @@ impl PostgisConnector {
         schema: &str,
         table_name: &str,
         geometry_column: Option<&str>,
+        srid: Option<i32>,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let mut column_names = Vec::new();
         let mut values = Vec::new();
@@ -141,8 +142,7 @@ impl PostgisConnector {
             // Convert geometry to WKT for PostGIS
             let wkt = geom.wkt()?;
 
-            // You might need to get SRID from the layer's spatial reference
-            let srid = 4326; // Or get from layer.spatial_ref()
+            let srid = srid.unwrap_or(4326);
             values.push(format!("ST_GeomFromText('{}', {})", wkt, srid));
         }
 
