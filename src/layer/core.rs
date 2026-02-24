@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Display, Serialize, Deserialize, EnumString, PartialEq)]
+#[derive(Copy, Clone, Debug, Display, Serialize, Deserialize, EnumString, PartialEq)]
 pub enum Srid {
     #[serde(rename = "3857")]
     #[strum(serialize = "3857")]
@@ -12,6 +12,15 @@ pub enum Srid {
     #[serde(rename = "4326")]
     #[strum(serialize = "4326")]
     EPSG4326,
+}
+
+impl From<Srid> for i32 {
+    fn from(srid: Srid) -> i32 {
+        match srid {
+            Srid::EPSG3857 => 3857,
+            Srid::EPSG4326 => 4326,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Display, Serialize, Deserialize, EnumString)]
